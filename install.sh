@@ -138,28 +138,21 @@ install_nyx() {
 gen_config() {
     local port=${1:-8443}
     local sni=${2:-www.bilibili.com}
-    local psk=$(random_str 32)
     local shortid=$(random_str 16)
 
     cat > $NYX_CONF <<EOF
 {
     "listen": ":${port}",
+    "short_ids": ["${shortid}"],
     "target_domain": "${sni}",
-    "psk": "${psk}",
-    "short_ids": {
-        "${shortid}": true
-    },
-    "tls_fingerprints": [
-        "chrome_124", "chrome_120", "chrome_116",
-        "firefox_125", "firefox_121", "firefox_117",
-        "safari_17", "safari_16", "safari_15",
-        "edge_124", "edge_120",
-        "ios_17", "ios_16",
-        "android_14"
-    ],
-    "mux": {
-        "max_streams": 256
-    }
+    "target_addr": "${sni}:443",
+    "cert_path": "${NYX_DIR}/nyx-cert.pem",
+    "key_path": "${NYX_DIR}/nyx-key.pem",
+    "max_conns_per_window": 10,
+    "rate_limit_window": 30,
+    "replay_window": 90,
+    "idle_timeout": 300,
+    "max_concurrent_conns": 256
 }
 EOF
 
@@ -168,13 +161,8 @@ EOF
 {
     "server": "${SERVER_IP}:${port}",
     "short_id": "${shortid}",
-    "psk": "${psk}",
     "sni": "${sni}",
-    "socks5": ":1080",
-    "fingerprints": [
-        "chrome_124", "chrome_120", "firefox_125",
-        "safari_17", "edge_124", "ios_17", "android_14"
-    ]
+    "socks5": ":1080"
 }
 EOF
 
@@ -230,7 +218,7 @@ start_nyx() {
         echo ""
         _green "  客户端连接信息:"
         _cyan "    服务器: ${SERVER_IP}:${1:-8443}"
-        _cyan "    PSK:    ${psk:-<见配置>}"
+        _cyan "    Short ID: ${shortid:-<见配置>}"
         _cyan "    SNI:    ${2:-www.bilibili.com}"
         echo ""
     else

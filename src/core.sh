@@ -43,8 +43,7 @@ view_info() {
 
     local port=$(grep -oP '"(:\d+|"[^"]*:\d+)"' "$nyx_server_conf" 2>/dev/null | grep -oP '\d+' | head -1 || echo "?")
     local sni=$(grep -oP '"target_domain"\s*:\s*"[^"]*"' "$nyx_server_conf" 2>/dev/null | cut -d'"' -f4 || echo "?")
-    local shortid=$(grep -oP '"[a-f0-9]{32,64}"' "$nyx_server_conf" 2>/dev/null | head -1 | tr -d '"' || echo "?")
-    local psk=$(grep -oP '"psk"\s*:\s*"[^"]*"' "$nyx_server_conf" 2>/dev/null | cut -d'"' -f4 || echo "?")
+    local shortid=$(grep -oP 'short_ids.*?\"([a-f0-9]{16,})\"' "$nyx_server_conf" 2>/dev/null | grep -oP '[a-f0-9]{16,}' | head -1 || echo "?")
     local ip=$(get_ip)
 
     echo
@@ -58,7 +57,6 @@ view_info() {
     echo
     _yellow "  ── 客户端 (Clash Meta / v2rayN / Nekoray) ──"
     echo "  服务器:   ${ip}:${port}"
-    echo "  PSK:      ${psk}"
     echo "  Short ID: ${shortid}"
     echo "  SNI:      ${sni}"
     echo "  协议:     nyx"
@@ -71,7 +69,6 @@ view_info() {
     echo "      server: ${ip}"
     echo "      port: ${port}"
     echo "      short-id: ${shortid}"
-    echo "      psk: ${psk}"
     echo "      sni: ${sni}"
     echo
     _yellow "  ── 客户端 JSON ──"
@@ -85,7 +82,6 @@ view_info() {
 add_config() {
     local port=${1:-8443}
     local sni=${2:-www.bilibili.com}
-    local psk=$(random_str 32)
     local shortid=$(random_str 16)
 
     # 备份旧配置
@@ -94,22 +90,16 @@ add_config() {
     cat > $nyx_server_conf <<EOF
 {
     "listen": ":${port}",
+    "short_ids": ["${shortid}"],
     "target_domain": "${sni}",
-    "psk": "${psk}",
-    "short_ids": {
-        "${shortid}": true
-    },
-    "tls_fingerprints": [
-        "chrome_124", "chrome_120", "chrome_116",
-        "firefox_125", "firefox_121", "firefox_117",
-        "safari_17", "safari_16", "safari_15",
-        "edge_124", "edge_120",
-        "ios_17", "ios_16",
-        "android_14"
-    ],
-    "mux": {
-        "max_streams": 256
-    }
+    "target_addr": "${sni}:443",
+    "cert_path": "${nyx_core_dir}/nyx-cert.pem",
+    "key_path": "${nyx_core_dir}/nyx-key.pem",
+    "max_conns_per_window": 10,
+    "rate_limit_window": 30,
+    "replay_window": 90,
+    "idle_timeout": 300,
+    "max_concurrent_conns": 256
 }
 EOF
 
@@ -118,13 +108,8 @@ EOF
 {
     "server": "${server_ip}:${port}",
     "short_id": "${shortid}",
-    "psk": "${psk}",
     "sni": "${sni}",
-    "socks5": ":1080",
-    "fingerprints": [
-        "chrome_124", "chrome_120", "firefox_125",
-        "safari_17", "edge_124", "ios_17", "android_14"
-    ]
+    "socks5": ":1080"
 }
 EOF
 
@@ -136,7 +121,7 @@ EOF
 # ---- 修改配置参数 ----
 change_config() {
     local opt="$1" val="$2"
-    [[ ! $opt ]] && { err "用法: nyx change <option> <value>\n  option: port, sni, psk"; }
+    [[ ! $opt ]] && { err "用法: nyx change <option> <value>\n  option: port, sni, shortid"; }
     [[ ! -f $nyx_server_conf ]] && err "配置文件不存在，请先 nyx add"
 
     case $opt in
@@ -149,18 +134,20 @@ change_config() {
         sni)
             [[ ! $val ]] && err "请指定域名，如: nyx change sni www.google.com"
             _sed "s/\"target_domain\": \"[^\"]*\"/\"target_domain\": \"${val}\"/" $nyx_server_conf
+            _sed "s/\"target_addr\": \"[^\"]*\"/\"target_addr\": \"${val}:443\"/" $nyx_server_conf
+            _sed "s/\"sni\": \"[^\"]*\"/\"sni\": \"${val}\"/" $nyx_client_conf
             _green "SNI 伪装域名已修改为: $val"
             warn "需要重启服务生效: nyx restart"
             ;;
-        psk)
-            [[ ! $val ]] && val=$(random_str 32)
-            _sed "s/\"psk\": \"[^\"]*\"/\"psk\": \"${val}\"/" $nyx_server_conf
-            _sed "s/\"psk\": \"[^\"]*\"/\"psk\": \"${val}\"/" $nyx_client_conf
-            _green "PSK 已更新: $val"
+        shortid)
+            [[ ! $val ]] && val=$(random_str 16)
+            _sed "s/\"short_ids\": \[\"[^\"]*\"\]/\"short_ids\": \[\""${val}"\"\]/" $nyx_server_conf
+            _sed "s/\"short_id\": \"[^\"]*\"/\"short_id\": \"${val}\"/" $nyx_client_conf
+            _green "Short ID 已更新: $val"
             warn "需要重启服务生效: nyx restart"
             ;;
         *)
-            err "未知配置项: $opt\n  支持: port, sni, psk"
+            err "未知配置项: $opt\n  支持: port, sni, shortid"
             ;;
     esac
 }
@@ -284,7 +271,7 @@ show_help() {
     echo
     _yellow "  配置管理:"
     echo "    add [端口] [SNI]   添加/重新生成配置"
-    echo "    change <项> <值>   修改配置 (port/sni/psk)"
+    echo "    change <项> <值>   修改配置 (port/sni/shortid)"
     echo
     _yellow "  服务控制:"
     echo "    start              启动服务"

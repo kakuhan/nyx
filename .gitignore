@@ -13,7 +13,7 @@ nyx-server
 nyx-client
 nyx-build-apk
 client
-server
+/server
 *.so
 *.dylib
 *.dll
