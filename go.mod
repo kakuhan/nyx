@@ -1,0 +1,17 @@
+module nyx
+
+go 1.25.0
+
+require (
+	github.com/refraction-networking/utls v1.6.7
+	golang.org/x/crypto v0.24.0
+)
+
+require (
+	github.com/andybalholm/brotli v1.0.6 // indirect
+	github.com/cloudflare/circl v1.3.7 // indirect
+	github.com/hashicorp/yamux v0.1.2 // indirect
+	github.com/klauspost/compress v1.17.4 // indirect
+	golang.org/x/mobile v0.0.0-20260508232728-bebd421c7fa8 // indirect
+	golang.org/x/sys v0.44.0 // indirect
+)

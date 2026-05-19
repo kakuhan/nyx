@@ -1,0 +1,53 @@
+# Nyx 透明代理协议
+# 缓冲区文件
+*.test
+# 构建产物
+build/
+dist/
+bin/
+*.exe
+*.apk
+*.apk.idsig
+# 二进制
+nyx-server
+nyx-client
+nyx-build-apk
+client
+server
+*.so
+*.dylib
+*.dll
+# 密钥和证书
+*.pem
+*.keystore
+*.jks
+*.key
+*-key.pem
+# 日志
+logs/
+*.log
+# 临时文件
+tmp/
+*.swp
+*.swo
+*~
+*.bak
+# IDE
+.idea/
+.vscode/
+*.iml
+# 系统
+.DS_Store
+Thumbs.db
+# Go coverage
+*.out
+*.prof
+# 测试缓存
+testdata/
+# 配置文件 (含敏感信息)
+nyx-client.json
+nyx-server.json
+nyx-client-remote.json
+# 构建目录
+apk-decoded/
+build-apk/
